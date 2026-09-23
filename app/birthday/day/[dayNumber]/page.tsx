@@ -379,7 +379,7 @@ function DayTwo({ content }: { content?: Record<string, unknown> }) {
 								className="w-full h-auto max-h-96 bg-stone-900 object-cover"
 								poster={mediaUrl("day-2", dayTwoImages[0])}
 							>
-								<source src={mediaUrl("day-2", videoName)} type="video/mp4" />
+								<source src={mediaUrl("day-2/optimized", videoName)} type="video/mp4" />
 							</video>
 						</div>
 					))}
