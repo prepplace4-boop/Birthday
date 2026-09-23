@@ -1,0 +1,7 @@
+# Birthday Journey Netlify Redirects
+# Static standalone pages served as-is
+/day3.html   /day3.html   200
+/day3        /day3.html   200
+
+# Next.js App Router SPA fallback for all other routes
+/*    /index.html   200

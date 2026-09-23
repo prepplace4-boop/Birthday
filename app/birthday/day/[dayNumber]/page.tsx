@@ -1,0 +1,731 @@
+import Image from "next/image";
+import Link from "next/link";
+import { notFound } from "next/navigation";
+import { cookies } from "next/headers";
+import { ensureDayUnlocked } from "@/lib/api/guards";
+import {
+  getDayContent,
+  getSettings,
+  computeUnlockDateForDay,
+} from "@/lib/api/store";
+import { verify, SECRET, ADMIN_COOKIE } from "@/lib/api/session";
+import { DayThreeLetters } from "@/components/birthday/day-three-letters";
+import { DayThreeEnvelopes } from "@/components/birthday/day-three-envelopes";
+import { ImageWithFallback } from "@/components/birthday/image-with-fallback";
+import { DayTwoEnvelope } from "@/components/birthday/day-two-envelope";
+import Day3Experience from "./Day3Experience";
+import DayUnlockGate from "./DayUnlockGate";
+import FinalSurpriseExperience from "./FinalSurpriseExperience";
+
+const storyChapters = [
+	{
+		marker: "CLASS 6",
+		title: "Where It All Started",
+		text:
+			"We were in the same class in 6th. At that time, you didn't really talk to many people. You were quiet and mostly kept to yourself. And then one day, during lunch break, because of the overcrowding or just one of those random situations, there was an unwanted push that made you angry. I don't think either of us knew at that moment that this completely random incident would become the beginning of knowing each other.",
+	},
+	{
+		marker: "AFTER A WHILE",
+		title: "Then Life Happened",
+		text:
+			"After that, we weren't really in touch for around two years. Life continued. Different things happened. Different people came and went. And somehow, that small connection from 6th class just became one of those things sitting somewhere in the background.",
+	},
+	{
+		marker: "8TH CLASS",
+		title: "Then Something Changed",
+		text:
+			"In 8th class, somewhere along the way, I started liking you. I finally said it. And your first answer was no. 😂 Which, honestly, was probably not the ending I was hoping for. But then, around two months later, you said yes.",
+	},
+	{
+		marker: "THE CONVERSATIONS",
+		title: "Then We Started Talking",
+		text:
+			"After that, we talked. A lot. Random conversations. Long conversations. Stupid conversations. Somewhere in all of them, knowing you became part of my everyday life.",
+	},
+	{
+		marker: "RELOCATION",
+		title: "And Then I Had to Leave",
+		text:
+			"Then my family relocated. And suddenly, the distance changed things. The conversations slowly became less frequent. Not because the connection completely disappeared, but because life was moving in different directions.",
+	},
+	{
+		marker: "AFTER THE BIRTHDAY",
+		title: "The Part I Don't Fully Remember",
+		text:
+			"Then, after my birthday, I had an accident. There is a part of what happened after that which I don't completely remember or understand. Sometimes I've wondered whether I unknowingly hurt you or somehow made you feel betrayed.",
+	},
+	{
+		marker: "TWO YEARS LATER",
+		title: "Somehow, We Found Our Way Back",
+		text:
+			"Then, after around two years, we started talking again. Not like nothing had happened. Just... talking again. And somehow, that was enough to remind me that some connections don't disappear completely.",
+	},
+	{
+		marker: "NOW",
+		title: "Not Always Close. Never Completely Gone.",
+		text:
+			"Maybe we haven't always talked properly. Maybe there have been long gaps. Maybe life has taken us in different directions. But somehow, we're still connected. And when I look at the whole story, that's probably one of the nicest parts.",
+	},
+];
+
+const mediaUrl = (folder: string, fileName: string) => `/${folder}/${encodeURIComponent(fileName)}`;
+
+const dayOneImages = [
+	"Memory Card 01 — The Beginning (1).jpg",
+	"Memory Card 01 — The Beginning (2).jpg",
+	"Memory Card 01 — The Beginning (3).jpg",
+	"Memory Card 01 — The Beginning (4).jpg",
+	"MEMORY 01 - The Beginning.jpg",
+];
+
+const dayTwoImages = [
+	"Scrapbook Photo Dump Collage Your Story.jpg",
+	"WhatsApp Image 2026-09-22 at 2.04.55 PM.jpeg",
+	"WhatsApp Image 2026-09-22 at 3.19.04 PM.jpeg",
+];
+
+const dayTwoVideos = [
+	"Brown Beige Vintage Scrapbook Thanks for Watching Video.mp4",
+	"Brown Beige Vintage Scrapbook Thanks for Watching Video (1).mp4",
+	"Brown Beige Vintage Scrapbook Thanks for Watching Video (2).mp4",
+];
+
+export default async function BirthdayDayPage({
+	params,
+	searchParams,
+}: {
+	params: Promise<{ dayNumber: string }>;
+	searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+}) {
+	const { dayNumber: dayNumberString } = await params;
+	const { preview } = await searchParams;
+	const dayNumber = Number(dayNumberString);
+
+	if (!Number.isInteger(dayNumber) || dayNumber < 1 || dayNumber > 5) {
+		notFound();
+	}
+
+	// Check if user is admin by validating admin session cookie
+	let isAdmin = false;
+	try {
+		const cookieStore = await cookies();
+		const adminCookie = cookieStore.get(ADMIN_COOKIE);
+		if (adminCookie && (await verify(adminCookie.value, SECRET))) {
+			isAdmin = true;
+		}
+	} catch {
+		isAdmin = false;
+	}
+
+	const allowPreview = isAdmin && preview === 'true';
+
+	const settings = getSettings();
+	const content = getDayContent(dayNumber) as Record<string, unknown> | undefined;
+
+	const serverResult = ensureDayUnlocked(dayNumber);
+
+	const unlockDate = computeUnlockDateForDay(
+		dayNumber as 1 | 2 | 3 | 4 | 5,
+	);
+	const [uy, um, ud] = unlockDate.split("-").map((n) => parseInt(n, 10));
+	const unlockMs = new Date(uy, (um || 1) - 1, ud || 1, 0, 0, 0, 0).getTime();
+	const nowMs = Date.now();
+	const hoursUntilUnlock = Math.ceil((unlockMs - nowMs) / (1000 * 60 * 60));
+	const clearlyLocked = !allowPreview && hoursUntilUnlock > 30;
+
+	if (clearlyLocked && serverResult.locked) {
+		return (
+			<main className="flex min-h-screen items-center justify-center bg-[radial-gradient(circle_at_top,_#fdf3ea_0%,_#f3e6d6_32%,_#e7d8b9_100%)] px-4 py-10 text-stone-800">
+				<div className="w-full max-w-xl rounded-[30px] border border-stone-200 bg-white/70 p-8 text-center shadow-[0_25px_60px_rgba(91,62,43,0.10)] backdrop-blur-sm">
+					<p className="font-display text-2xl italic text-rose-500">
+						day {dayNumber}
+					</p>
+					<h1 className="mt-4 font-display text-4xl text-stone-800">
+						Locked for now
+					</h1>
+					<p className="mt-4 text-base leading-7 text-stone-600">
+						{serverResult.teaser}
+					</p>
+					<Link
+						href="/birthday"
+						className="mt-6 inline-flex items-center justify-center rounded-full bg-stone-900 px-5 py-3 text-sm font-medium text-white transition hover:bg-stone-700"
+					>
+						Back to the journey
+					</Link>
+				</div>
+			</main>
+		);
+	}
+
+	const dayInfo = (serverResult as any).day ?? {
+		title: `Day ${dayNumber}`,
+		subtitle: "",
+	};
+
+	return (
+		<DayUnlockGate dayNumber={dayNumber} isAdminPreview={allowPreview}>
+			<main className="min-h-screen bg-[radial-gradient(circle_at_top,_#fdf3ea_0%,_#f3e6d6_32%,_#e7d8b9_100%)] text-stone-800">
+				<div className="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
+					{allowPreview && (
+						<div className="mb-6 rounded-[24px] border border-amber-300 bg-amber-50 p-4 text-center">
+							<p className="text-sm font-medium text-amber-800">
+								👁️ Admin Preview Mode — This day is locked for guests
+							</p>
+						</div>
+					)}
+					<header
+						className={`mb-8 flex flex-col gap-4 rounded-[28px] border border-rose-200/70 bg-white/55 p-5 shadow-[0_20px_50px_rgba(91,62,43,0.08)] backdrop-blur-sm sm:p-8 ${
+							dayNumber === 3 ? "hidden sm:block" : ""
+						}`}
+					>
+						<div className="flex items-center justify-between gap-3">
+							<p className="font-display text-lg italic text-rose-500">
+								{settings.herName}&apos;s birthday journey
+							</p>
+							<Link
+								href="/birthday"
+								className="text-sm text-stone-600 underline decoration-stone-400 underline-offset-4"
+							>
+								Back to days
+							</Link>
+						</div>
+						<div>
+							<p className="text-xs uppercase tracking-[0.25em] text-stone-500">
+								chapter {dayNumber}
+							</p>
+							<h1 className="mt-3 font-display text-4xl text-stone-800 sm:text-5xl">
+								{dayInfo.title}
+							</h1>
+							<p className="mt-2 text-base text-stone-600">
+								{dayInfo.subtitle}
+							</p>
+						</div>
+					</header>
+
+					{dayNumber === 1 && <DayOne content={content} />}
+					{dayNumber === 2 && <DayTwo content={content} />}
+					{dayNumber === 3 && <Day3Experience />}
+					{dayNumber === 4 && <DayFour content={content} />}
+					{dayNumber === 5 && <DayFive content={content} />}
+				</div>
+			</main>
+		</DayUnlockGate>
+	);
+}
+
+function DayOne({ content }: { content?: Record<string, unknown> }) {
+	const welcomeMessage = String(
+		content?.welcomeMessage ?? "Welcome to the beginning."
+	);
+	const timeline = Array.isArray(content?.timelineItems)
+		? (content?.timelineItems as Array<{
+				date?: string;
+				title?: string;
+				description?: string;
+		  }>)
+		: [];
+	const featured = Array.isArray(content?.featuredMemories)
+		? (content?.featuredMemories as Array<{ title?: string; description?: string }>)
+		: [];
+	const mystery = content?.mysteryQuestion as { question?: string; options?: Array<{ label?: string }> } | undefined;
+
+	return (
+		<div className="space-y-6">
+			<section className="rounded-[30px] border border-stone-200 bg-white/75 p-6 shadow-[0_18px_40px_rgba(91,62,43,0.06)] sm:p-8">
+				<p className="font-display text-2xl italic text-rose-500">Hey.</p>
+				<p className="mt-5 text-lg leading-8 text-stone-700">
+					{welcomeMessage}
+				</p>
+				<div className="mt-8 rounded-[24px] bg-gradient-to-r from-amber-50 via-rose-50 to-stone-50 p-6 text-center ring-1 ring-stone-200">
+					<p className="text-xs uppercase tracking-[0.25em] text-amber-700">
+						chapter 01
+					</p>
+					<h2 className="mt-3 font-display text-4xl text-stone-800">
+						The Beginning
+					</h2>
+				</div>
+			</section>
+
+			<section className="rounded-[32px] border border-stone-300/50 bg-gradient-to-br from-[#fdf8f4] via-[#faf5f1] to-[#f5ede4] p-8 shadow-[0_25px_60px_rgba(91,62,43,0.12)] sm:p-10">
+				<div className="mb-8 flex items-end justify-between gap-3">
+					<div>
+						<p className="font-display text-5xl text-stone-800">Featured memory</p>
+					</div>
+					<p className="text-xs uppercase tracking-[0.3em] font-semibold text-rose-600">
+						{featured.length > 0 ? `${featured.length} moments` : "a memory"}
+					</p>
+				</div>
+
+				{/* Compact 5-Card Grid Layout */}
+				<div className="grid gap-4 md:gap-5 lg:grid-cols-3">
+					{/* Featured Card - Left Column, Spans 2 Rows */}
+					<div className="group relative overflow-hidden rounded-[24px] border-2 border-stone-200/60 bg-white shadow-[0_28px_56px_rgba(91,62,43,0.15)] lg:row-span-2">
+						<div className="relative h-64 overflow-hidden bg-stone-100 md:h-80 lg:h-[420px]">
+							<ImageWithFallback
+								src={mediaUrl("day-1", dayOneImages[0])}
+								alt="Featured memory from the beginning"
+								width={1200}
+								height={960}
+								className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
+								priority={true}
+							/>
+						</div>
+						<div className="border-t-2 border-stone-200/50 bg-gradient-to-br from-[#f7efe8] to-[#f2e8df] px-5 py-4">
+							<p className="text-[10px] uppercase tracking-[0.3em] font-bold text-rose-500">memory 01</p>
+							<h4 className="mt-2 font-display text-2xl text-stone-800">The Beginning</h4>
+							<p className="mt-3 text-sm leading-6 text-stone-700">
+								{featured[0]?.description ?? "Sometimes, the beginning is quiet. But it stays with you longer than you expect."}
+							</p>
+						</div>
+					</div>
+
+					{/* Right Side - 4 Cards in 2x2 Grid */}
+					<div className="grid gap-4 md:gap-5 lg:col-span-2 lg:grid-cols-2">
+						{dayOneImages.slice(1).map((image, index) => (
+							<div
+								key={`${image}-${index}`}
+								className="group relative overflow-hidden rounded-[20px] border-2 border-stone-200/60 bg-white shadow-[0_18px_40px_rgba(91,62,43,0.1)] transition-all hover:shadow-[0_24px_48px_rgba(91,62,43,0.15)]"
+							>
+								<div className="relative h-40 overflow-hidden bg-stone-100 md:h-48">
+									<ImageWithFallback
+										src={mediaUrl("day-1", image)}
+										alt={`Beginning memory ${index + 2}`}
+										width={800}
+										height={640}
+										className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
+										loading="lazy"
+									/>
+								</div>
+								<div className="border-t-2 border-stone-200/50 bg-gradient-to-r from-[#f8f2ea] to-[#f4ede4] px-4 py-3">
+									<p className="text-[9px] uppercase tracking-[0.25em] font-bold text-rose-500">memory {index + 2}</p>
+									<p className="mt-1 text-xs text-stone-600">The Beginning</p>
+								</div>
+							</div>
+						))}
+					</div>
+				</div>
+			</section>
+
+			<section className="rounded-[30px] border border-stone-200 bg-white/75 p-6 shadow-[0_18px_40px_rgba(91,62,43,0.06)] sm:p-8">
+				<h3 className="font-display text-4xl text-stone-800">
+					Our story, in chapters
+				</h3>
+				<div className="mt-8 space-y-8">
+					{timeline.length > 0 ? (
+						timeline.map((item, index) => (
+							<div
+								key={`${item.title ?? "memory-"}${index}`}
+								className="grid gap-6 rounded-[28px] border border-stone-200 bg-gradient-to-br from-stone-50/80 to-amber-50/40 p-6 shadow-[0_16px_32px_rgba(91,62,43,0.06)] md:grid-cols-[1fr_1.2fr]"
+							>
+								<div className="order-2 flex flex-col justify-center md:order-1">
+									<p className="text-xs uppercase tracking-[0.25em] font-semibold text-rose-600">
+										{item.date ?? "a memory"}
+									</p>
+									<h4 className="mt-3 font-display text-3xl text-stone-800">
+										{item.title ?? "A little chapter"}
+									</h4>
+									<p className="mt-4 text-base leading-8 text-stone-700 whitespace-pre-wrap">
+										{item.description ?? "A memory we keep close."}
+									</p>
+								</div>
+								<div className="order-1 overflow-hidden rounded-[24px] border border-stone-200 bg-stone-50 shadow-lg md:order-2">
+									<ImageWithFallback
+										src={mediaUrl("day-1", dayOneImages[Math.min(index, dayOneImages.length - 1)])}
+										alt={`Chapter ${index + 1}: ${item.title}`}
+										width={1000}
+										height={800}
+										className="h-72 w-full object-cover sm:h-96"
+										loading="lazy"
+									/>
+								</div>
+							</div>
+						))
+					) : (
+						<p className="text-stone-600">
+							The timeline is waiting for its first memory.
+						</p>
+					)}
+				</div>
+			</section>
+
+			<section className="rounded-[30px] border border-rose-200 bg-gradient-to-r from-rose-50 via-amber-50 to-stone-50 p-6 shadow-[0_18px_40px_rgba(91,62,43,0.08)] sm:p-8">
+				<div className="text-center">
+					<p className="font-display text-2xl italic text-rose-500">✨ A little reminder...</p>
+					<p className="mt-4 text-lg leading-8 text-stone-700">
+						This is only the start.
+					</p>
+					<p className="mt-2 text-base text-stone-600">
+						Every day comes with a new gift. Keep scrolling — there&apos;s so much more ahead. 🎁
+					</p>
+				</div>
+			</section>
+		</div>
+	);
+}
+
+function DayTwo({ content }: { content?: Record<string, unknown> }) {
+	const memories = Array.isArray(content?.memories)
+		? (content?.memories as Array<{ title?: string; description?: string }>)
+		: [];
+	
+	const message = typeof content?.message === "string" 
+		? content.message 
+		: "You mean so much to me, and every moment with you is a treasure I hold close to my heart.";
+
+	return (
+		<div className="space-y-0">
+			{/* INTRO SECTION */}
+			<section className="rounded-[32px] border border-stone-300/50 bg-gradient-to-br from-[#fdf8f4] via-[#faf5f1] to-[#f5ede4] p-8 shadow-[0_25px_60px_rgba(91,62,43,0.12)] sm:p-10 mb-16">
+				<div className="max-w-2xl">
+					<p className="text-xs uppercase tracking-[0.3em] font-bold text-rose-600">day two</p>
+					<h2 className="mt-4 font-display text-6xl text-stone-800">The Memory Vault</h2>
+					<p className="mt-6 text-xl leading-8 text-stone-700">
+						A collection of moments that mean everything to me. Scroll through to relive the memories we&apos;ve created together.
+					</p>
+				</div>
+			</section>
+
+			{/* PHOTO MEMORIES - ONE BY ONE WITH LEFT IMAGE + RIGHT DESCRIPTION */}
+			{dayTwoImages.map((image, index) => (
+				<div key={`memory-${index}`} className="mb-20 scroll-mt-8">
+					<div className="grid gap-8 lg:grid-cols-2 items-center">
+						{/* Image */}
+						<div className="order-1 lg:order-1">
+							<div className="relative overflow-hidden rounded-[24px] border-2 border-stone-200/60 bg-stone-100 shadow-[0_28px_56px_rgba(91,62,43,0.15)]">
+								<div className="relative h-96 lg:h-[500px] w-full">
+									<ImageWithFallback
+										src={mediaUrl("day-2", image)}
+										alt={`Memory ${index + 1}`}
+										width={1000}
+										height={1000}
+										className="w-full h-full object-cover"
+										loading="lazy"
+									/>
+								</div>
+							</div>
+						</div>
+
+						{/* Description */}
+						<div className="order-2 lg:order-2">
+							<div className="space-y-6">
+								<div>
+									<p className="text-xs uppercase tracking-[0.3em] font-bold text-rose-600">memory {index + 1}</p>
+									<h3 className="mt-4 font-display text-4xl text-stone-800">
+										{memories[index]?.title ?? "A Moment We Cherish"}
+									</h3>
+								</div>
+								<p className="text-lg leading-8 text-stone-700">
+									{memories[index]?.description ?? "This moment captures the essence of us. The laughter, the connection, the feeling of being truly understood by someone."}
+								</p>
+							</div>
+						</div>
+					</div>
+				</div>
+			))}
+
+			{/* LITTLE MOMENTS - VIDEO SECTION */}
+			<section className="my-20 rounded-[32px] border border-stone-300/50 bg-gradient-to-br from-[#faf5f1] via-[#f5ede4] to-[#f0e8df] p-8 shadow-[0_25px_60px_rgba(91,62,43,0.12)] sm:p-10">
+				<div className="mb-12">
+					<p className="text-xs uppercase tracking-[0.3em] font-bold text-rose-600">little moments</p>
+					<h3 className="mt-4 font-display text-5xl text-stone-800">Moments in Motion</h3>
+					<p className="mt-4 text-lg text-stone-700">Videos that capture the essence of us</p>
+				</div>
+
+				<div className="space-y-8">
+					{dayTwoVideos.map((videoName, index) => (
+						<div key={`video-${index}`} className="overflow-hidden rounded-[24px] border-2 border-stone-200/60 shadow-[0_18px_40px_rgba(91,62,43,0.1)]">
+							<video
+								controls
+								preload="metadata"
+								playsInline
+								className="w-full h-auto max-h-96 bg-stone-900 object-cover"
+								poster={mediaUrl("day-2", dayTwoImages[0])}
+							>
+								<source src={mediaUrl("day-2", videoName)} type="video/mp4" />
+							</video>
+						</div>
+					))}
+				</div>
+			</section>
+
+			{/* ENVELOPE TEASER */}
+			<section className="my-20 text-center">
+				<p className="text-lg text-stone-700 mb-8">There is one more thing...</p>
+				<div className="inline-block animate-bounce">
+					<div className="text-6xl">✉️</div>
+				</div>
+			</section>
+
+			{/* SEALED ENVELOPE - CLICKABLE */}
+			<DayTwoEnvelope message={message} />
+
+			{/* DAY 2 COMPLETION */}
+			<section className="my-20 rounded-[32px] border border-stone-300/50 bg-gradient-to-br from-[#fdf8f4] via-[#faf5f1] to-[#f5ede4] p-8 shadow-[0_25px_60px_rgba(91,62,43,0.12)] sm:p-10 text-center">
+				<h3 className="font-display text-5xl text-stone-800">Day 2 Complete ✓</h3>
+				<p className="mt-4 text-lg text-stone-700">You&apos;ve seen the memories. You&apos;ve felt the moments. Thank you for being part of my story.</p>
+			</section>
+
+			{/* DAY 3 TEASER */}
+			<section className="my-20 rounded-[32px] border-2 border-dashed border-amber-400/50 bg-gradient-to-br from-amber-50/50 to-rose-50/50 p-8 sm:p-10 text-center">
+				<p className="text-xs uppercase tracking-[0.3em] font-bold text-amber-700 mb-4">coming next</p>
+				<h4 className="font-display text-4xl text-stone-800">Day 3 Awaits</h4>
+				<p className="mt-4 text-lg text-stone-700">Things I Never Said</p>
+			</section>
+		</div>
+	);
+}
+
+function DayThree({ content }: { content?: Record<string, unknown> }) {
+	const envelopes = Array.isArray(content?.envelopes)
+		? (content?.envelopes as Array<{ title?: string; message?: string }>)
+		: [];
+
+	const fallbackLetters = [
+		{ title: "Something I’ve always appreciated about you", message: "Kesar, I’ve always admired how quietly thoughtful you are. You notice the tiny things, the little things that make people feel cared for, and you do it without making it a performance. That kind of warmth has stayed with me." },
+		{ title: "A memory I never told you about", message: "There are moments I still replay in my head — the way you laughed when you were trying not to, the calm in your voice when I was overwhelmed, the way your presence somehow made the whole day feel lighter. I still carry those moments with me." },
+		{ title: "The thing I notice most about you", message: "You are gentle in a way that doesn’t ask for attention, but it changes everything. You care deeply, you listen closely, and you make people feel seen without even trying. That is one of the prettiest things about you." },
+		{ title: "What I think when you walk in the room", message: "My first thought is always something like, ‘Oh, there she is.’ Not dramatic or poetic — just honest. Being with you feels like exhaling after a long time. It feels like coming home." },
+		{ title: "What I wish for you", message: "I wish for the kind of life where your heart feels safe, your dreams feel possible, and your days have more softness than chaos. I wish you to be loved in the obvious and the quiet ways, and to never doubt how special you are." },
+		{ title: "The time you inspired me", message: "There were days when I had no idea how to hold my own thoughts, and somehow your steadiness made me feel like things could be okay. You’ve inspired me more than you know, just by being the kind of person you are." },
+		{ title: "How you changed me", message: "You made ordinary moments feel full. A conversation, a ride, a quiet night, a shared joke — all of it felt richer because you were part of it. You changed the way I notice things, and I think that is one of the loveliest gifts you’ve given me." },
+		{ title: "My favorite version of you", message: "I think my favorite version of you is the one who is honest and unguarded, the one who lets her personality be bright and real and warm. It’s the version of you that makes everything feel simpler and softer." },
+		{ title: "An apology", message: "I’m sorry for the times I was not as present as I should have been. I’m sorry for the things I didn’t say early enough, or said in the wrong way, or left unsaid because I was afraid. You deserve gentleness, clarity, and people who show up wholeheartedly." },
+		{ title: "One more thing…", message: "I hope you know that some of the most important things in life are not loud. They are the quiet moments, the small glances, the things that stay with you long after other things fade. You are one of those. You stay." },
+	];
+
+	const letterList = envelopes.length > 0 ? envelopes : fallbackLetters;
+
+	return (
+		<div className="space-y-6">
+			<section className="rounded-[32px] border border-amber-300/40 bg-gradient-to-br from-[#fdf8f4] via-[#faf5f1] to-[#f5ede4] p-8 shadow-[0_25px_60px_rgba(91,62,43,0.12)] sm:p-10">
+				<div className="mb-8">
+					<p className="text-xs uppercase tracking-[0.3em] font-bold text-rose-600">day three</p>
+					<h2 className="mt-3 font-display text-5xl text-stone-800">
+						The things I never said
+					</h2>
+					<p className="mt-4 text-lg text-stone-700">
+						Ten letters, sealed. Tap one open when you&apos;re ready to read it.
+					</p>
+				</div>
+			</section>
+
+			<div>
+				<DayThreeEnvelopes letters={letterList} />
+			</div>
+		</div>
+	);
+}
+
+function DayFour({ content }: { content?: Record<string, unknown> }) {
+	const rooms = Array.isArray(content?.rooms)
+		? (content?.rooms as Array<Record<string, unknown>>)
+		: [];
+
+	return (
+		<div className="space-y-6">
+			<section className="overflow-hidden rounded-[30px] border border-stone-200 bg-[radial-gradient(circle_at_top,_#fffaf5_0%,_#f9f1e7_50%,_#f1e9df_100%)] shadow-[0_18px_40px_rgba(91,62,43,0.06)]">
+				<div className="grid gap-0 md:grid-cols-[1.2fr_0.8fr]">
+					<div className="p-6 sm:p-8">
+						<p className="text-xs uppercase tracking-[0.28em] text-stone-500">day four</p>
+						<h2 className="mt-3 font-display text-4xl text-stone-800">The Museum of You</h2>
+						<p className="mt-4 max-w-xl text-base leading-7 text-stone-700">
+							A collection of the little details, the habitual things, and the beautiful quirks that make you impossible to forget.
+						</p>
+					</div>
+					<div className="relative min-h-[220px]">
+						<Image
+							src={mediaUrl("day-1", dayOneImages[0])}
+							alt="Museum mood image"
+							width={1200}
+							height={900}
+							className="h-full w-full object-cover"
+							loading="lazy"
+						/>
+					</div>
+				</div>
+			</section>
+
+			<section className="grid gap-4 md:grid-cols-2">
+				{rooms.slice(0, 6).map((room, index) => {
+					const title = String(room.title ?? `Room ${index + 1}`);
+					const subtitle = String(room.subtitle ?? "A little exhibit");
+					const exhibits = Array.isArray(room.exhibits) ? room.exhibits : [];
+					const playlist = Array.isArray(room.playlist) ? room.playlist : [];
+					const chaos = Array.isArray(room.chaosEntries) ? room.chaosEntries : [];
+					const appreciation = Array.isArray(room.appreciationCards) ? room.appreciationCards : [];
+					const habits = Array.isArray(room.habits) ? room.habits : [];
+					const observations = Array.isArray(room.observations) ? room.observations : [];
+
+					return (
+						<div
+							key={`${title}-${index}`}
+							className="rounded-[28px] border border-stone-200 bg-[radial-gradient(circle_at_top,_#fffaf5_0%,_#f9f1e7_50%,_#f1e9df_100%)] p-5 shadow-[0_16px_32px_rgba(91,62,43,0.06)]"
+						>
+							<div className="flex items-center justify-between gap-3">
+								<p className="text-[10px] uppercase tracking-[0.22em] text-stone-500">
+									room {index + 1}
+								</p>
+								<span className="rounded-full border border-rose-200 bg-rose-50 px-2 py-1 text-[9px] uppercase tracking-[0.18em] text-rose-600">
+									open
+								</span>
+							</div>
+
+							<h3 className="mt-4 font-display text-3xl text-stone-800">{title}</h3>
+							<p className="mt-2 text-sm leading-6 text-stone-600">{subtitle}</p>
+
+							<div className="mt-5 space-y-3">
+								{exhibits.slice(0, 3).map((item, itemIndex) => (
+									<div key={`${title}-exhibit-${itemIndex}`} className="rounded-[18px] border border-stone-200 bg-white/70 p-3">
+										<p className="text-[10px] uppercase tracking-[0.2em] text-stone-500">detail</p>
+										<h4 className="mt-2 font-medium text-stone-800">{String(item.title ?? `Exhibit ${itemIndex + 1}`)}</h4>
+										<p className="mt-1 text-sm leading-6 text-stone-600">{String(item.description ?? "A tiny detail worth noticing.")}</p>
+									</div>
+								))}
+
+								{playlist.slice(0, 2).map((song, songIndex) => (
+									<div key={`${title}-song-${songIndex}`} className="rounded-[18px] border border-stone-200 bg-white/70 p-3">
+										<p className="text-[10px] uppercase tracking-[0.2em] text-stone-500">soundtrack</p>
+										<h4 className="mt-2 font-medium text-stone-800">{String(song.title ?? `Song ${songIndex + 1}`)}</h4>
+										<p className="mt-1 text-sm leading-6 text-stone-600">{String(song.reason ?? "It reminds me of you.")}</p>
+									</div>
+								))}
+
+								{chaos.slice(0, 2).map((entry, entryIndex) => (
+									<div key={`${title}-chaos-${entryIndex}`} className="rounded-[18px] border border-stone-200 bg-white/70 p-3">
+										<p className="text-[10px] uppercase tracking-[0.2em] text-stone-500">chaos archive</p>
+										<h4 className="mt-2 font-medium text-stone-800">{String(entry.title ?? `Moment ${entryIndex + 1}`)}</h4>
+										<p className="mt-1 text-sm leading-6 text-stone-600">{String(entry.caption ?? "A truly unforgettable scene.")}</p>
+									</div>
+								))}
+
+								{appreciation.slice(0, 2).map((card, cardIndex) => (
+									<div key={`${title}-appreciation-${cardIndex}`} className="rounded-[18px] border border-stone-200 bg-white/70 p-3">
+										<p className="text-[10px] uppercase tracking-[0.2em] text-stone-500">favorite thing</p>
+										<h4 className="mt-2 font-medium text-stone-800">{String(card.title ?? `Card ${cardIndex + 1}`)}</h4>
+										<p className="mt-1 text-sm leading-6 text-stone-600">{String(card.description ?? "Something I adore about you.")}</p>
+									</div>
+								))}
+
+								{habits.slice(0, 2).map((habit, habitIndex) => (
+									<div key={`${title}-habit-${habitIndex}`} className="rounded-[18px] border border-stone-200 bg-white/70 p-3">
+										<p className="text-[10px] uppercase tracking-[0.2em] text-stone-500">habit</p>
+										<p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-stone-700">{String(habit.statement ?? "A little thing you do that is completely you.")}</p>
+										<p className="mt-2 text-xs font-medium uppercase tracking-[0.18em] text-rose-500">{String(habit.revealedAnswer ?? "true")}</p>
+									</div>
+								))}
+
+								{observations.slice(0, 2).map((obs, obsIndex) => (
+									<div key={`${title}-obs-${obsIndex}`} className="rounded-[18px] border border-stone-200 bg-white/70 p-3">
+										<p className="text-[10px] uppercase tracking-[0.2em] text-stone-500">observation</p>
+										<p className="mt-2 text-sm leading-6 text-stone-700">{String(obs.statement ?? "There is something lovely here.")}</p>
+									</div>
+								))}
+							</div>
+						</div>
+					);
+				})}
+			</section>
+		</div>
+	);
+}
+
+function DayFive({ content }: { content?: Record<string, unknown> }) {
+	const finalIntroLines = Array.isArray(content?.finalIntroLines)
+		? (content?.finalIntroLines as string[])
+		: [];
+	const finalLetter = content?.finalLetter as { title?: string; content?: string; signature?: string } | undefined;
+	const finalSurprise = content?.finalSurprise as { title?: string; content?: string; url?: string; type?: string } | undefined;
+	const friendMessages = Array.isArray(content?.friendMessages)
+		? (content?.friendMessages as Array<{ name?: string; message?: string }>)
+		: [];
+	const birthdayReveal = content?.birthdayReveal as { title?: string; subtitle?: string } | undefined;
+	const finalVideo = content?.finalVideo as { title?: string; url?: string; thumbnailUrl?: string } | undefined;
+
+	return (
+		<div className="space-y-6">
+			<section className="overflow-hidden rounded-[30px] border border-rose-200 bg-[radial-gradient(circle_at_top,_#fff3f5_0%,_#fffaf5_58%,_#fce7ef_100%)] p-6 shadow-[0_18px_40px_rgba(91,62,43,0.06)] sm:p-8">
+				<div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
+					<div>
+						<p className="text-xs uppercase tracking-[0.28em] text-rose-500">day five</p>
+						<h2 className="mt-3 font-display text-4xl text-stone-800">The Final Chapter</h2>
+						<div className="mt-6 flex flex-wrap gap-2">
+							{finalIntroLines.length > 0 ? (
+								finalIntroLines.map((line, index) => (
+									<span key={`${line}-${index}`} className="rounded-full border border-rose-200 bg-white/70 px-3 py-1.5 text-[10px] uppercase tracking-[0.2em] text-stone-600">
+										{line}
+									</span>
+								))
+							) : (
+								<>
+									<span className="rounded-full border border-rose-200 bg-white/70 px-3 py-1.5 text-[10px] uppercase tracking-[0.2em] text-stone-600">before you continue...</span>
+									<span className="rounded-full border border-rose-200 bg-white/70 px-3 py-1.5 text-[10px] uppercase tracking-[0.2em] text-stone-600">thank you</span>
+								</>
+							)}
+						</div>
+					</div>
+					<div className="relative overflow-hidden rounded-[28px] border border-rose-200 bg-stone-50">
+						<Image
+							src={mediaUrl("day-2", dayTwoImages[0])}
+							alt="Final chapter mood image"
+							width={1200}
+							height={900}
+							className="h-full w-full object-cover opacity-95"
+							loading="lazy"
+						/>
+					</div>
+				</div>
+			</section>
+
+			<section className="rounded-[30px] border border-stone-200 bg-white/75 p-6 shadow-[0_18px_40px_rgba(91,62,43,0.06)] sm:p-8">
+				<div className="rounded-[24px] border border-rose-200 bg-rose-50 p-5">
+					<p className="text-[10px] uppercase tracking-[0.25em] text-rose-500">birthday reveal</p>
+					<h3 className="mt-3 font-display text-4xl text-stone-800">{birthdayReveal?.title ?? "HAPPY BIRTHDAY, KESAR ❤️"}</h3>
+					<p className="mt-3 text-base leading-7 text-stone-700">{birthdayReveal?.subtitle ?? "I hope today is the start of everything beautiful you deserve."}</p>
+				</div>
+			</section>
+
+			<section className="rounded-[30px] border border-stone-200 bg-white/75 p-6 shadow-[0_18px_40px_rgba(91,62,43,0.06)] sm:p-8">
+				<h3 className="font-display text-3xl text-stone-800">The note I wanted to leave you</h3>
+				<div className="mt-6 rounded-[24px] border border-rose-200 bg-rose-50 p-5">
+					<p className="text-[10px] uppercase tracking-[0.22em] text-rose-500">final note</p>
+					<h4 className="mt-3 font-display text-3xl text-stone-800">{finalLetter?.title ?? "One last thing..."}</h4>
+					<p className="mt-4 whitespace-pre-line text-sm leading-7 text-stone-700">
+						{finalLetter?.content ?? "You are loved, deeply and quietly, in all the ways that matter."}
+					</p>
+					<p className="mt-5 text-right font-display text-xl italic text-stone-700">
+						{finalLetter?.signature ?? "With love"}
+					</p>
+				</div>
+			</section>
+
+			{/* MESSAGES FROM FRIENDS REMOVED — all focus is on the final surprise reveal */}
+
+			<section className="rounded-[30px] border border-rose-200 bg-[radial-gradient(circle_at_top,_#fff1f3_0%,_#fffaf8_60%,_#f6e9e2_100%)] p-6 shadow-[0_18px_40px_rgba(91,62,43,0.06)] sm:p-8">
+				<p className="text-[10px] uppercase tracking-[0.25em] text-rose-500">final surprise</p>
+				<h3 className="mt-3 font-display text-3xl text-stone-800">{finalSurprise?.title ?? "Your final surprise"}</h3>
+				<p className="mt-3 text-base leading-7 text-stone-700">{finalSurprise?.content ?? "Click below to open the last little gift I prepared for you."}</p>
+
+				<FinalSurpriseExperience
+					title={finalSurprise?.title}
+					content={finalSurprise?.content}
+					finalVideo={
+						finalVideo
+							? {
+									title: finalVideo.title,
+									url: finalVideo.url,
+									thumbnailUrl:
+										finalVideo.thumbnailUrl ??
+										mediaUrl("day-2", dayTwoImages[0]),
+								}
+							: undefined
+					}
+					extraGiftUrl={
+						finalSurprise?.url && finalSurprise.url !== "https://example.com"
+							? finalSurprise.url
+							: null
+					}
+				/>
+			</section>
+		</div>
+	);
+}
