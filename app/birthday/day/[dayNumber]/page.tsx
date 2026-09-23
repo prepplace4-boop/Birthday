@@ -3,72 +3,18 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { cookies } from "next/headers";
 import { ensureDayUnlocked } from "@/lib/api/guards";
-import {
-  getDayContent,
-  getSettings,
-  computeUnlockDateForDay,
-} from "@/lib/api/store";
+import { getDayContent, getSettings } from "@/lib/api/store";
 import { verify, SECRET, ADMIN_COOKIE } from "@/lib/api/session";
-import { DayThreeLetters } from "@/components/birthday/day-three-letters";
 import { DayThreeEnvelopes } from "@/components/birthday/day-three-envelopes";
 import { ImageWithFallback } from "@/components/birthday/image-with-fallback";
 import { DayTwoEnvelope } from "@/components/birthday/day-two-envelope";
 import Day3Experience from "./Day3Experience";
 import DayUnlockGate from "./DayUnlockGate";
 import FinalSurpriseExperience from "./FinalSurpriseExperience";
+import { buildMediaUrl } from "@/lib/media";
 
-const storyChapters = [
-	{
-		marker: "CLASS 6",
-		title: "Where It All Started",
-		text:
-			"We were in the same class in 6th. At that time, you didn't really talk to many people. You were quiet and mostly kept to yourself. And then one day, during lunch break, because of the overcrowding or just one of those random situations, there was an unwanted push that made you angry. I don't think either of us knew at that moment that this completely random incident would become the beginning of knowing each other.",
-	},
-	{
-		marker: "AFTER A WHILE",
-		title: "Then Life Happened",
-		text:
-			"After that, we weren't really in touch for around two years. Life continued. Different things happened. Different people came and went. And somehow, that small connection from 6th class just became one of those things sitting somewhere in the background.",
-	},
-	{
-		marker: "8TH CLASS",
-		title: "Then Something Changed",
-		text:
-			"In 8th class, somewhere along the way, I started liking you. I finally said it. And your first answer was no. 😂 Which, honestly, was probably not the ending I was hoping for. But then, around two months later, you said yes.",
-	},
-	{
-		marker: "THE CONVERSATIONS",
-		title: "Then We Started Talking",
-		text:
-			"After that, we talked. A lot. Random conversations. Long conversations. Stupid conversations. Somewhere in all of them, knowing you became part of my everyday life.",
-	},
-	{
-		marker: "RELOCATION",
-		title: "And Then I Had to Leave",
-		text:
-			"Then my family relocated. And suddenly, the distance changed things. The conversations slowly became less frequent. Not because the connection completely disappeared, but because life was moving in different directions.",
-	},
-	{
-		marker: "AFTER THE BIRTHDAY",
-		title: "The Part I Don't Fully Remember",
-		text:
-			"Then, after my birthday, I had an accident. There is a part of what happened after that which I don't completely remember or understand. Sometimes I've wondered whether I unknowingly hurt you or somehow made you feel betrayed.",
-	},
-	{
-		marker: "TWO YEARS LATER",
-		title: "Somehow, We Found Our Way Back",
-		text:
-			"Then, after around two years, we started talking again. Not like nothing had happened. Just... talking again. And somehow, that was enough to remind me that some connections don't disappear completely.",
-	},
-	{
-		marker: "NOW",
-		title: "Not Always Close. Never Completely Gone.",
-		text:
-			"Maybe we haven't always talked properly. Maybe there have been long gaps. Maybe life has taken us in different directions. But somehow, we're still connected. And when I look at the whole story, that's probably one of the nicest parts.",
-	},
-];
 
-const mediaUrl = (folder: string, fileName: string) => `/${folder}/${encodeURIComponent(fileName)}`;
+const mediaUrl = buildMediaUrl;
 
 const dayOneImages = [
 	"Memory Card 01 — The Beginning (1).jpg",
@@ -122,18 +68,10 @@ export default async function BirthdayDayPage({
 	const settings = getSettings();
 	const content = getDayContent(dayNumber) as Record<string, unknown> | undefined;
 
+	// The server-side guard is the single source of truth for unlock state.
 	const serverResult = ensureDayUnlocked(dayNumber);
 
-	const unlockDate = computeUnlockDateForDay(
-		dayNumber as 1 | 2 | 3 | 4 | 5,
-	);
-	const [uy, um, ud] = unlockDate.split("-").map((n) => parseInt(n, 10));
-	const unlockMs = new Date(uy, (um || 1) - 1, ud || 1, 0, 0, 0, 0).getTime();
-	const nowMs = Date.now();
-	const hoursUntilUnlock = Math.ceil((unlockMs - nowMs) / (1000 * 60 * 60));
-	const clearlyLocked = !allowPreview && hoursUntilUnlock > 30;
-
-	if (clearlyLocked && serverResult.locked) {
+	if (serverResult.locked && !allowPreview) {
 		return (
 			<main className="flex min-h-screen items-center justify-center bg-[radial-gradient(circle_at_top,_#fdf3ea_0%,_#f3e6d6_32%,_#e7d8b9_100%)] px-4 py-10 text-stone-800">
 				<div className="w-full max-w-xl rounded-[30px] border border-stone-200 bg-white/70 p-8 text-center shadow-[0_25px_60px_rgba(91,62,43,0.10)] backdrop-blur-sm">
@@ -475,47 +413,6 @@ function DayTwo({ content }: { content?: Record<string, unknown> }) {
 	);
 }
 
-function DayThree({ content }: { content?: Record<string, unknown> }) {
-	const envelopes = Array.isArray(content?.envelopes)
-		? (content?.envelopes as Array<{ title?: string; message?: string }>)
-		: [];
-
-	const fallbackLetters = [
-		{ title: "Something I’ve always appreciated about you", message: "Kesar, I’ve always admired how quietly thoughtful you are. You notice the tiny things, the little things that make people feel cared for, and you do it without making it a performance. That kind of warmth has stayed with me." },
-		{ title: "A memory I never told you about", message: "There are moments I still replay in my head — the way you laughed when you were trying not to, the calm in your voice when I was overwhelmed, the way your presence somehow made the whole day feel lighter. I still carry those moments with me." },
-		{ title: "The thing I notice most about you", message: "You are gentle in a way that doesn’t ask for attention, but it changes everything. You care deeply, you listen closely, and you make people feel seen without even trying. That is one of the prettiest things about you." },
-		{ title: "What I think when you walk in the room", message: "My first thought is always something like, ‘Oh, there she is.’ Not dramatic or poetic — just honest. Being with you feels like exhaling after a long time. It feels like coming home." },
-		{ title: "What I wish for you", message: "I wish for the kind of life where your heart feels safe, your dreams feel possible, and your days have more softness than chaos. I wish you to be loved in the obvious and the quiet ways, and to never doubt how special you are." },
-		{ title: "The time you inspired me", message: "There were days when I had no idea how to hold my own thoughts, and somehow your steadiness made me feel like things could be okay. You’ve inspired me more than you know, just by being the kind of person you are." },
-		{ title: "How you changed me", message: "You made ordinary moments feel full. A conversation, a ride, a quiet night, a shared joke — all of it felt richer because you were part of it. You changed the way I notice things, and I think that is one of the loveliest gifts you’ve given me." },
-		{ title: "My favorite version of you", message: "I think my favorite version of you is the one who is honest and unguarded, the one who lets her personality be bright and real and warm. It’s the version of you that makes everything feel simpler and softer." },
-		{ title: "An apology", message: "I’m sorry for the times I was not as present as I should have been. I’m sorry for the things I didn’t say early enough, or said in the wrong way, or left unsaid because I was afraid. You deserve gentleness, clarity, and people who show up wholeheartedly." },
-		{ title: "One more thing…", message: "I hope you know that some of the most important things in life are not loud. They are the quiet moments, the small glances, the things that stay with you long after other things fade. You are one of those. You stay." },
-	];
-
-	const letterList = envelopes.length > 0 ? envelopes : fallbackLetters;
-
-	return (
-		<div className="space-y-6">
-			<section className="rounded-[32px] border border-amber-300/40 bg-gradient-to-br from-[#fdf8f4] via-[#faf5f1] to-[#f5ede4] p-8 shadow-[0_25px_60px_rgba(91,62,43,0.12)] sm:p-10">
-				<div className="mb-8">
-					<p className="text-xs uppercase tracking-[0.3em] font-bold text-rose-600">day three</p>
-					<h2 className="mt-3 font-display text-5xl text-stone-800">
-						The things I never said
-					</h2>
-					<p className="mt-4 text-lg text-stone-700">
-						Ten letters, sealed. Tap one open when you&apos;re ready to read it.
-					</p>
-				</div>
-			</section>
-
-			<div>
-				<DayThreeEnvelopes letters={letterList} />
-			</div>
-		</div>
-	);
-}
-
 function DayFour({ content }: { content?: Record<string, unknown> }) {
 	const rooms = Array.isArray(content?.rooms)
 		? (content?.rooms as Array<Record<string, unknown>>)
@@ -635,9 +532,6 @@ function DayFive({ content }: { content?: Record<string, unknown> }) {
 		: [];
 	const finalLetter = content?.finalLetter as { title?: string; content?: string; signature?: string } | undefined;
 	const finalSurprise = content?.finalSurprise as { title?: string; content?: string; url?: string; type?: string } | undefined;
-	const friendMessages = Array.isArray(content?.friendMessages)
-		? (content?.friendMessages as Array<{ name?: string; message?: string }>)
-		: [];
 	const birthdayReveal = content?.birthdayReveal as { title?: string; subtitle?: string } | undefined;
 	const finalVideo = content?.finalVideo as { title?: string; url?: string; thumbnailUrl?: string } | undefined;
 
@@ -698,7 +592,6 @@ function DayFive({ content }: { content?: Record<string, unknown> }) {
 				</div>
 			</section>
 
-			{/* MESSAGES FROM FRIENDS REMOVED — all focus is on the final surprise reveal */}
 
 			<section className="rounded-[30px] border border-rose-200 bg-[radial-gradient(circle_at_top,_#fff1f3_0%,_#fffaf8_60%,_#f6e9e2_100%)] p-6 shadow-[0_18px_40px_rgba(91,62,43,0.06)] sm:p-8">
 				<p className="text-[10px] uppercase tracking-[0.25em] text-rose-500">final surprise</p>

@@ -30,9 +30,10 @@ export default function FinalSurpriseExperience({
     const COUNTDOWN = document.getElementById("fs-countdown");
     const COUNTDOWN_N = document.getElementById("fs-countdown-n");
     const PROGRESS = document.getElementById("fs-progress");
-    let filmTimer: ReturnType<typeof setTimeout> | null = null;
-    let cdInterval: ReturnType<typeof setInterval> | null = null;
-    const FILM_MAX_MS = 6000;
+
+    // Guards against the cake stage being triggered more than once
+    // (e.g. "ended" firing while a manual skip is also in flight).
+    let advanced = false;
 
     function showStage(n: 0 | 1 | 2) {
       [STAGE_0, STAGE_1, STAGE_2].forEach((el) => {
@@ -110,45 +111,36 @@ export default function FinalSurpriseExperience({
       requestAnimationFrame(frame);
     }
 
-    function startCountdownAndProgress() {
-      if (COUNTDOWN) COUNTDOWN.style.opacity = "1";
-      if (PROGRESS) {
-        setTimeout(() => {
-          if (PROGRESS) PROGRESS.style.width = "100%";
-        }, 20);
-      }
-      let sec = 6;
-      if (COUNTDOWN_N) COUNTDOWN_N.textContent = String(sec);
-      cdInterval = setInterval(() => {
-        sec--;
-        if (COUNTDOWN_N && sec >= 1) COUNTDOWN_N.textContent = String(sec);
-        if (sec <= 1 && cdInterval) {
-          clearInterval(cdInterval);
-          cdInterval = null;
-        }
-      }, 1000);
+    // Drives the progress bar + "Xs left" badge off the video's REAL
+    // playback position, instead of a fixed countdown.
+    function onTimeUpdate() {
+      if (!FILM || !isFinite(FILM.duration) || FILM.duration <= 0) return;
+      const pct = Math.min(100, (FILM.currentTime / FILM.duration) * 100);
+      if (PROGRESS) PROGRESS.style.width = `${pct}%`;
+      const remaining = Math.max(0, Math.ceil(FILM.duration - FILM.currentTime));
+      if (COUNTDOWN_N) COUNTDOWN_N.textContent = String(remaining);
     }
 
-    function stopCountdown() {
-      if (cdInterval) {
-        clearInterval(cdInterval);
-        cdInterval = null;
-      }
+    function onLoadedMetadata() {
+      if (!FILM || !isFinite(FILM.duration)) return;
+      if (COUNTDOWN_N) COUNTDOWN_N.textContent = String(Math.ceil(FILM.duration));
     }
 
     function toStage2() {
-      if (filmTimer) {
-        clearTimeout(filmTimer);
-        filmTimer = null;
-      }
-      stopCountdown();
+      if (advanced) return;
+      advanced = true;
+
       if (FILM) {
+        FILM.removeEventListener("timeupdate", onTimeUpdate);
+        FILM.removeEventListener("loadedmetadata", onLoadedMetadata);
+        FILM.removeEventListener("ended", toStage2);
         try {
           FILM.pause();
         } catch (_e) {
           /* noop */
         }
       }
+
       showStage(2);
       setTimeout(() => {
         if (CAKE) {
@@ -165,30 +157,26 @@ export default function FinalSurpriseExperience({
       setTimeout(() => launchConfetti(), 380);
     }
 
-    function startFilmTimer() {
-      if (filmTimer) return;
-      startCountdownAndProgress();
-      filmTimer = setTimeout(() => toStage2(), FILM_MAX_MS);
-      if (FILM) {
-        FILM.addEventListener(
-          "ended",
-          () => toStage2(),
-          { once: true },
-        );
-      }
-    }
-
     function runFinalSurprise() {
       showStage(1);
+
       if (FILM) {
+        if (COUNTDOWN) COUNTDOWN.style.opacity = "1";
+        // The cake stage is gated ONLY on the video actually finishing.
+        FILM.addEventListener("timeupdate", onTimeUpdate);
+        FILM.addEventListener("loadedmetadata", onLoadedMetadata);
+        FILM.addEventListener("ended", toStage2, { once: true });
+
         const p = FILM.play();
         if (p && typeof (p as Promise<void>).catch === "function") {
           (p as Promise<void>).catch(() => {
-            /* autoplay blocked, timer runs regardless */
+            /* autoplay blocked — the visible controls let them press play,
+               and "ended" will still fire (and gate the cake) once they do */
           });
         }
       }
-      startFilmTimer();
+      // If there's no video configured at all, stage 1 shows the
+      // placeholder below, which has its own manual "Continue" button.
     }
 
     function skipToCake() {
@@ -211,7 +199,6 @@ export default function FinalSurpriseExperience({
     }
 
     (window as any).__runFinalSurprise = runFinalSurprise;
-    (window as any).__startFilmTimer = startFilmTimer;
     (window as any).__skipToCake = skipToCake;
     (window as any).__blowCandles = blowCandles;
 
@@ -222,6 +209,14 @@ export default function FinalSurpriseExperience({
         "@keyframes fsBreathe{0%,100%{transform:scale(1)}50%{transform:scale(1.018)}}";
       document.head.appendChild(st);
     }
+
+    return () => {
+      if (FILM) {
+        FILM.removeEventListener("timeupdate", onTimeUpdate);
+        FILM.removeEventListener("loadedmetadata", onLoadedMetadata);
+        FILM.removeEventListener("ended", toStage2);
+      }
+    };
   }, []);
 
   const filmTitle =
@@ -255,15 +250,12 @@ export default function FinalSurpriseExperience({
             {filmUrl ? (
               <video
                 id="fs-film-video"
-                className="aspect-video w-full bg-stone-950 object-cover"
+                className="aspect-video w-full bg-stone-950 object-contain"
                 autoPlay
                 playsInline
                 muted
                 controls
                 poster={filmThumb}
-                onPlay={() => {
-                  (window as any).__startFilmTimer?.();
-                }}
                 onError={() => {
                   (window as any).__skipToCake?.();
                 }}
@@ -273,31 +265,41 @@ export default function FinalSurpriseExperience({
                 <source src={filmUrl} type="video/webm" />
               </video>
             ) : (
-              <div className="aspect-video w-full flex items-center justify-center bg-gradient-to-br from-stone-900 via-rose-950 to-stone-900 text-white/80">
+              <div className="aspect-video w-full flex flex-col items-center justify-center gap-5 bg-gradient-to-br from-stone-900 via-rose-950 to-stone-900 text-white/80">
                 <div className="text-center px-6">
                   <div className="text-6xl mb-3 animate-pulse">🎬</div>
                   <p className="font-display text-3xl">A little film for you</p>
                   <p className="text-sm mt-3 opacity-70">
-                    Something wonderful is about to appear in just a few
-                    seconds...
+                    No film is attached yet — tap continue whenever you&apos;re ready.
                   </p>
                 </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    (window as any).__skipToCake?.();
+                  }}
+                  className="inline-flex items-center justify-center rounded-full border border-white/30 bg-white/10 px-5 py-2.5 text-sm font-medium text-white backdrop-blur-md transition hover:bg-white/20"
+                >
+                  Continue to your cake 🎂
+                </button>
               </div>
             )}
             <div className="absolute left-4 top-3 rounded-full bg-black/60 px-3 py-1.5 text-[10px] uppercase tracking-[0.25em] text-rose-200 backdrop-blur-md ring-1 ring-white/10">
               the final surprise
             </div>
-            <div
-              id="fs-countdown"
-              className="absolute right-4 top-3 rounded-full bg-black/55 px-3 py-1.5 text-xs font-medium text-white/90 backdrop-blur-md ring-1 ring-white/10 opacity-0 transition-opacity"
-            >
-              🎂 <span id="fs-countdown-n">6</span>s
-            </div>
+            {filmUrl ? (
+              <div
+                id="fs-countdown"
+                className="absolute right-4 top-3 rounded-full bg-black/55 px-3 py-1.5 text-xs font-medium text-white/90 backdrop-blur-md ring-1 ring-white/10 opacity-0 transition-opacity"
+              >
+                🎂 <span id="fs-countdown-n"></span>s
+              </div>
+            ) : null}
             <div className="absolute inset-x-0 bottom-0 h-1.5 bg-black/30 overflow-hidden">
               <div
                 id="fs-progress"
-                className="h-full w-0 bg-gradient-to-r from-rose-400 via-pink-400 to-amber-300 transition-[width] ease-linear"
-                style={{ transitionDuration: "6000ms" }}
+                className="h-full w-0 bg-gradient-to-r from-rose-400 via-pink-400 to-amber-300"
+                style={{ transition: "width 250ms linear" }}
               />
             </div>
           </div>
