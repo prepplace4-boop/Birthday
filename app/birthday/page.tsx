@@ -4,25 +4,7 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import { useEffect, useMemo, useState } from "react";
 import { getAllDays, getSettings } from "@/lib/api/store";
-
-const getCountdownParts = (targetDate: string | undefined, currentTime = Date.now()) => {
-  if (!targetDate) {
-    return { days: 0, hours: 0, minutes: 0, seconds: 0, isPast: false };
-  }
-
-  const difference = new Date(targetDate).getTime() - currentTime;
-  if (difference <= 0) {
-    return { days: 0, hours: 0, minutes: 0, seconds: 0, isPast: true };
-  }
-
-  return {
-    days: Math.floor(difference / (1000 * 60 * 60 * 24)),
-    hours: Math.floor((difference / (1000 * 60 * 60)) % 24),
-    minutes: Math.floor((difference / (1000 * 60)) % 60),
-    seconds: Math.floor((difference / 1000) % 60),
-    isPast: false,
-  };
-};
+import { getBirthdayCountdown } from "@/lib/unlock";
 
 export default function BirthdayHomePage() {
   const settings = getSettings();
@@ -39,7 +21,14 @@ export default function BirthdayHomePage() {
     [days],
   );
 
-  const countdown = getCountdownParts(settings.birthdayDate, now);
+  const countdownRaw = getBirthdayCountdown(settings.birthdayDate, new Date(now));
+  const countdown = {
+    days: countdownRaw.days,
+    hours: countdownRaw.hours,
+    minutes: countdownRaw.minutes,
+    seconds: countdownRaw.seconds,
+    isPast: countdownRaw.isBirthday,
+  };
 
   return (
     <main className="min-h-screen bg-[radial-gradient(circle_at_top,_#fdf3ea_0%,_#f3e6d6_32%,_#e7d8b9_100%)] text-stone-800">

@@ -55,6 +55,8 @@ export function ImageWithFallback({
             height={height}
             className={className}
             loading={priority ? 'eager' : loading || 'lazy'}
+            decoding="async"
+            fetchPriority={priority ? 'high' : 'auto'}
             onError={() => setHasError(true)}
         />
     );

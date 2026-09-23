@@ -322,7 +322,15 @@ const LETTERS: Letter[] = [
           existed in the same frame at some point.
         </p>
         <p>I don&apos;t need a caption for this one. The photo says it.</p>
-        <div className="photo-slot">📷 the picture that means more than you think</div>
+        <div className="photo-slot photo-slot--filled">
+          <img
+            src="/day-3/Myfav.jpeg"
+            alt="A picture that means more than you think"
+            className="photo-slot__img"
+            loading="lazy"
+            decoding="async"
+          />
+        </div>
       </>
     ),
   },
@@ -653,6 +661,22 @@ const styles = `
     margin-top: 14px; border: 1.5px dashed rgba(46,36,24,.28); border-radius: 8px; padding: 22px 14px;
     text-align: center; font-size: 12.5px; color: var(--ink-soft); transform: rotate(-0.6deg);
     background: rgba(46,36,24,.02);
+  }
+  .photo-slot--filled {
+    border: none;
+    padding: 0;
+    overflow: hidden;
+    border-radius: 14px;
+    box-shadow: 0 10px 30px rgba(46,36,24,.18), 0 2px 6px rgba(46,36,24,.10);
+    background: #f5ecdd;
+  }
+  .photo-slot__img {
+    display: block;
+    width: 100%;
+    height: auto;
+    max-height: 520px;
+    object-fit: cover;
+    border-radius: 14px;
   }
   .d3-illustration { width: 34px; height: 34px; color: var(--gold); margin-bottom: 8px; display: block; }
 

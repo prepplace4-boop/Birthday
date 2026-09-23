@@ -91,18 +91,15 @@ interface BirthdayState {
   dayCompleted: Map<string, Map<number, boolean>>;
 }
 
-function addDays(date: Date, days: number): string {
-  const d = new Date(date);
-  d.setDate(d.getDate() + days);
-  return d.toISOString().split('T')[0];
-}
-
 function buildSettings(): JourneySettings {
-  const today = new Date();
   return {
     herName: 'Kesar',
     yourName: 'Hardik',
-    birthdayDate: addDays(today, 5),
+    // FIXED, real calendar date — do NOT compute this relative to "now".
+    // This module's in-memory state gets rebuilt from scratch on every
+    // cold start (serverless) / process restart, so anything derived from
+    // `new Date()` here silently drifts forward every time that happens.
+    birthdayDate: '2026-09-27',
     theme: 'warm',
     background: 'gradient-rose',
     musicUrl: '',
@@ -425,10 +422,15 @@ export function setSettings(patch: Partial<JourneySettings>): JourneySettings {
 
 export const patchSettings = setSettings;
 
+// BUGFIX: this used to call buildUnlockSchedule(null) unconditionally, which
+// made the schedule fall back to "today" as the anchor on every call instead
+// of the configured birthday — so every day's unlock date silently chased
+// "now" and never reflected the real schedule. Always anchor on the
+// journey's actual configured birthday date instead.
 function computeUnlockDateForDay(dayNumber: 1 | 2 | 3 | 4 | 5): string {
-  const schedule = buildUnlockSchedule(null);
+  const schedule = buildUnlockSchedule(state.settings.birthdayDate);
   const match = schedule.find((s) => s.dayNumber === dayNumber);
-  return match?.unlockDate ?? buildUnlockSchedule(null)[dayNumber - 1]?.unlockDate ?? new Date().toISOString().split('T')[0];
+  return match?.unlockDate ?? buildUnlockSchedule(state.settings.birthdayDate)[dayNumber - 1]?.unlockDate ?? new Date().toISOString().split('T')[0];
 }
 
 function isDayUnlockedAt(dayNumber: number, at: Date): boolean {
