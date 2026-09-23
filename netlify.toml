@@ -1,9 +1,9 @@
 [build]
   command = "npm run build"
+  publish = ".next"
 
-[plugins]
-  [[plugins]]
-    package = "@netlify/plugin-nextjs"
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
 
 [functions]
   node_bundler = "esbuild"
@@ -28,6 +28,7 @@
 
 [[headers]]
   for = "/*"
+
   [headers.values]
     X-Frame-Options = "SAMEORIGIN"
     X-Content-Type-Options = "nosniff"
@@ -36,10 +37,12 @@
 
 [[headers]]
   for = "/_next/static/*"
+
   [headers.values]
     Cache-Control = "public, max-age=31536000, immutable"
 
 [[headers]]
   for = "/day-*/*"
+
   [headers.values]
     Cache-Control = "public, max-age=2592000, immutable"
