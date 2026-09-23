@@ -25,7 +25,7 @@ const dayOneImages = [
 ];
 
 const dayTwoImages = [
-	"Scrapbook Photo Dump Collage Your Story.jpg",
+	"Scrapbook Photo Dump Collage Your Story.webp",
 	"WhatsApp Image 2026-09-22 at 2.04.55 PM.jpeg",
 	"WhatsApp Image 2026-09-22 at 3.19.04 PM.jpeg",
 ];

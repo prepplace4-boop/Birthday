@@ -392,7 +392,7 @@ state.day4Extra = { rooms: buildRooms(state.days.get(4)!.id) };
 state.day5Extra = {
   finalIntroLines: ['Before you continue...', 'Thank you.', 'For all the random conversations.', 'For all the memories.', 'For all the chaos.', 'And simply for being you.'],
   birthdayReveal: { title: 'HAPPY BIRTHDAY, KESAR ❤️', subtitle: 'I hope today is the start of everything beautiful you deserve.' },
-  finalVideo: { title: 'A LITTLE FILM FOR YOU', url: '/day-5/optimized/day5-optimized.mp4', thumbnailUrl: '/day-2/Scrapbook%20Photo%20Dump%20Collage%20Your%20Story.jpg' },
+  finalVideo: { title: 'A LITTLE FILM FOR YOU', url: '/day-5/optimized/day5-optimized.mp4', thumbnailUrl: '/day-2/Scrapbook%20Photo%20Dump%20Collage%20Your%20Story.webp' },
   finalSurprise: { type: 'externalLink', title: 'Your final surprise', content: 'Click below to open the last little gift I prepared for you.', url: 'https://example.com' },
 };
 
