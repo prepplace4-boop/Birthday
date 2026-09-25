@@ -8,6 +8,8 @@ import { verify, SECRET, ADMIN_COOKIE } from "@/lib/api/session";
 import { DayThreeEnvelopes } from "@/components/birthday/day-three-envelopes";
 import { ImageWithFallback } from "@/components/birthday/image-with-fallback";
 import { DayTwoEnvelope } from "@/components/birthday/day-two-envelope";
+import { MuseumOfYou } from "@/components/birthday/museum/page";
+import { DayFiveScrapbookLetter } from "@/components/birthday/day-five-scrapbook-letter";
 import Day3Experience from "./Day3Experience";
 import DayUnlockGate from "./DayUnlockGate";
 import FinalSurpriseExperience from "./FinalSurpriseExperience";
@@ -143,7 +145,7 @@ export default async function BirthdayDayPage({
 					{dayNumber === 1 && <DayOne content={content} />}
 					{dayNumber === 2 && <DayTwo content={content} />}
 					{dayNumber === 3 && <Day3Experience />}
-					{dayNumber === 4 && <DayFour content={content} />}
+					{dayNumber === 4 && <DayFour preview={Boolean(preview)} />}
 					{dayNumber === 5 && <DayFive content={content} />}
 				</div>
 			</main>
@@ -413,117 +415,8 @@ function DayTwo({ content }: { content?: Record<string, unknown> }) {
 	);
 }
 
-function DayFour({ content }: { content?: Record<string, unknown> }) {
-	const rooms = Array.isArray(content?.rooms)
-		? (content?.rooms as Array<Record<string, unknown>>)
-		: [];
-
-	return (
-		<div className="space-y-6">
-			<section className="overflow-hidden rounded-[30px] border border-stone-200 bg-[radial-gradient(circle_at_top,_#fffaf5_0%,_#f9f1e7_50%,_#f1e9df_100%)] shadow-[0_18px_40px_rgba(91,62,43,0.06)]">
-				<div className="grid gap-0 md:grid-cols-[1.2fr_0.8fr]">
-					<div className="p-6 sm:p-8">
-						<p className="text-xs uppercase tracking-[0.28em] text-stone-500">day four</p>
-						<h2 className="mt-3 font-display text-4xl text-stone-800">The Museum of You</h2>
-						<p className="mt-4 max-w-xl text-base leading-7 text-stone-700">
-							A collection of the little details, the habitual things, and the beautiful quirks that make you impossible to forget.
-						</p>
-					</div>
-					<div className="relative min-h-[220px]">
-						<Image
-							src={mediaUrl("day-1", dayOneImages[0])}
-							alt="Museum mood image"
-							width={1200}
-							height={900}
-							className="h-full w-full object-cover"
-							loading="lazy"
-						/>
-					</div>
-				</div>
-			</section>
-
-			<section className="grid gap-4 md:grid-cols-2">
-				{rooms.slice(0, 6).map((room, index) => {
-					const title = String(room.title ?? `Room ${index + 1}`);
-					const subtitle = String(room.subtitle ?? "A little exhibit");
-					const exhibits = Array.isArray(room.exhibits) ? room.exhibits : [];
-					const playlist = Array.isArray(room.playlist) ? room.playlist : [];
-					const chaos = Array.isArray(room.chaosEntries) ? room.chaosEntries : [];
-					const appreciation = Array.isArray(room.appreciationCards) ? room.appreciationCards : [];
-					const habits = Array.isArray(room.habits) ? room.habits : [];
-					const observations = Array.isArray(room.observations) ? room.observations : [];
-
-					return (
-						<div
-							key={`${title}-${index}`}
-							className="rounded-[28px] border border-stone-200 bg-[radial-gradient(circle_at_top,_#fffaf5_0%,_#f9f1e7_50%,_#f1e9df_100%)] p-5 shadow-[0_16px_32px_rgba(91,62,43,0.06)]"
-						>
-							<div className="flex items-center justify-between gap-3">
-								<p className="text-[10px] uppercase tracking-[0.22em] text-stone-500">
-									room {index + 1}
-								</p>
-								<span className="rounded-full border border-rose-200 bg-rose-50 px-2 py-1 text-[9px] uppercase tracking-[0.18em] text-rose-600">
-									open
-								</span>
-							</div>
-
-							<h3 className="mt-4 font-display text-3xl text-stone-800">{title}</h3>
-							<p className="mt-2 text-sm leading-6 text-stone-600">{subtitle}</p>
-
-							<div className="mt-5 space-y-3">
-								{exhibits.slice(0, 3).map((item, itemIndex) => (
-									<div key={`${title}-exhibit-${itemIndex}`} className="rounded-[18px] border border-stone-200 bg-white/70 p-3">
-										<p className="text-[10px] uppercase tracking-[0.2em] text-stone-500">detail</p>
-										<h4 className="mt-2 font-medium text-stone-800">{String(item.title ?? `Exhibit ${itemIndex + 1}`)}</h4>
-										<p className="mt-1 text-sm leading-6 text-stone-600">{String(item.description ?? "A tiny detail worth noticing.")}</p>
-									</div>
-								))}
-
-								{playlist.slice(0, 2).map((song, songIndex) => (
-									<div key={`${title}-song-${songIndex}`} className="rounded-[18px] border border-stone-200 bg-white/70 p-3">
-										<p className="text-[10px] uppercase tracking-[0.2em] text-stone-500">soundtrack</p>
-										<h4 className="mt-2 font-medium text-stone-800">{String(song.title ?? `Song ${songIndex + 1}`)}</h4>
-										<p className="mt-1 text-sm leading-6 text-stone-600">{String(song.reason ?? "It reminds me of you.")}</p>
-									</div>
-								))}
-
-								{chaos.slice(0, 2).map((entry, entryIndex) => (
-									<div key={`${title}-chaos-${entryIndex}`} className="rounded-[18px] border border-stone-200 bg-white/70 p-3">
-										<p className="text-[10px] uppercase tracking-[0.2em] text-stone-500">chaos archive</p>
-										<h4 className="mt-2 font-medium text-stone-800">{String(entry.title ?? `Moment ${entryIndex + 1}`)}</h4>
-										<p className="mt-1 text-sm leading-6 text-stone-600">{String(entry.caption ?? "A truly unforgettable scene.")}</p>
-									</div>
-								))}
-
-								{appreciation.slice(0, 2).map((card, cardIndex) => (
-									<div key={`${title}-appreciation-${cardIndex}`} className="rounded-[18px] border border-stone-200 bg-white/70 p-3">
-										<p className="text-[10px] uppercase tracking-[0.2em] text-stone-500">favorite thing</p>
-										<h4 className="mt-2 font-medium text-stone-800">{String(card.title ?? `Card ${cardIndex + 1}`)}</h4>
-										<p className="mt-1 text-sm leading-6 text-stone-600">{String(card.description ?? "Something I adore about you.")}</p>
-									</div>
-								))}
-
-								{habits.slice(0, 2).map((habit, habitIndex) => (
-									<div key={`${title}-habit-${habitIndex}`} className="rounded-[18px] border border-stone-200 bg-white/70 p-3">
-										<p className="text-[10px] uppercase tracking-[0.2em] text-stone-500">habit</p>
-										<p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-stone-700">{String(habit.statement ?? "A little thing you do that is completely you.")}</p>
-										<p className="mt-2 text-xs font-medium uppercase tracking-[0.18em] text-rose-500">{String(habit.revealedAnswer ?? "true")}</p>
-									</div>
-								))}
-
-								{observations.slice(0, 2).map((obs, obsIndex) => (
-									<div key={`${title}-obs-${obsIndex}`} className="rounded-[18px] border border-stone-200 bg-white/70 p-3">
-										<p className="text-[10px] uppercase tracking-[0.2em] text-stone-500">observation</p>
-										<p className="mt-2 text-sm leading-6 text-stone-700">{String(obs.statement ?? "There is something lovely here.")}</p>
-									</div>
-								))}
-							</div>
-						</div>
-					);
-				})}
-			</section>
-		</div>
-	);
+function DayFour({ preview }: { preview?: boolean }) {
+	return <MuseumOfYou preview={preview} />;
 }
 
 function DayFive({ content }: { content?: Record<string, unknown> }) {
@@ -537,38 +430,7 @@ function DayFive({ content }: { content?: Record<string, unknown> }) {
 
 	return (
 		<div className="space-y-6">
-			<section className="overflow-hidden rounded-[30px] border border-rose-200 bg-[radial-gradient(circle_at_top,_#fff3f5_0%,_#fffaf5_58%,_#fce7ef_100%)] p-6 shadow-[0_18px_40px_rgba(91,62,43,0.06)] sm:p-8">
-				<div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
-					<div>
-						<p className="text-xs uppercase tracking-[0.28em] text-rose-500">day five</p>
-						<h2 className="mt-3 font-display text-4xl text-stone-800">The Final Chapter</h2>
-						<div className="mt-6 flex flex-wrap gap-2">
-							{finalIntroLines.length > 0 ? (
-								finalIntroLines.map((line, index) => (
-									<span key={`${line}-${index}`} className="rounded-full border border-rose-200 bg-white/70 px-3 py-1.5 text-[10px] uppercase tracking-[0.2em] text-stone-600">
-										{line}
-									</span>
-								))
-							) : (
-								<>
-									<span className="rounded-full border border-rose-200 bg-white/70 px-3 py-1.5 text-[10px] uppercase tracking-[0.2em] text-stone-600">before you continue...</span>
-									<span className="rounded-full border border-rose-200 bg-white/70 px-3 py-1.5 text-[10px] uppercase tracking-[0.2em] text-stone-600">thank you</span>
-								</>
-							)}
-						</div>
-					</div>
-					<div className="relative overflow-hidden rounded-[28px] border border-rose-200 bg-stone-50">
-						<Image
-							src={mediaUrl("day-2", dayTwoImages[0])}
-							alt="Final chapter mood image"
-							width={1200}
-							height={900}
-							className="h-full w-full object-cover opacity-95"
-							loading="lazy"
-						/>
-					</div>
-				</div>
-			</section>
+			<DayFiveScrapbookLetter />
 
 			<section className="rounded-[30px] border border-stone-200 bg-white/75 p-6 shadow-[0_18px_40px_rgba(91,62,43,0.06)] sm:p-8">
 				<div className="rounded-[24px] border border-rose-200 bg-rose-50 p-5">
